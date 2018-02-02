@@ -14,9 +14,9 @@ COMMIT = $(shell git log -1 --format="%h" 2>/dev/null || echo "0")
 VERSION=$(shell git describe --tags --always)
 BUILD_DATE = $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 FLAGS = -ldflags "\
-  -X $(PROJECT)/constants.COMMIT=$(COMMIT) \
-  -X $(PROJECT)/constants.VERSION=$(VERSION) \
-  -X $(PROJECT)/constants.BUILD_DATE=$(BUILD_DATE) \
+  -X constants.COMMIT=$(COMMIT) \
+  -X constants.VERSION=$(VERSION) \
+  -X constants.BUILD_DATE=$(BUILD_DATE) \
   "
 
 GOBUILD = $(GOCMD) build $(FLAGS)
@@ -26,8 +26,8 @@ all:	build
 
 .PHONY: build
 build:
-	GOARCH=amd64 GOOS=darwin $(GOBUILD) -o $(DISTPATH).darwin $(PROJECT)
-	GOARCH=amd64 GOOS=linux $(GOBUILD) -o $(DISTPATH).linux $(PROJECT)
+	GOARCH=amd64 GOOS=darwin $(GOBUILD) -o $(DISTPATH).darwin ./$(PROJECT)
+	GOARCH=amd64 GOOS=linux $(GOBUILD) -o $(DISTPATH).linux ./$(PROJECT)
 
 .PHONY: deploy
 deploy: coverage build
@@ -36,26 +36,16 @@ deploy: coverage build
 
 .PHONY: run
 run:
-	- $(GOCMD) run src/$(PROJECT)/main.go
+	- $(GOCMD) run ./main.go
 
 .PHONY: test
 test:
-	$(GOCMD) test ./src/$(PROJECT)/...
+	$(GOCMD) test ./...
 
 .PHONY: coverage
 coverage:
-	rm -fr coverage
-	mkdir -p coverage
-	$(GOCMD) list $(PROJECT)/... > coverage/packages
-	@i=a ; \
-	while read -r P; do \
-		i=a$$i ; \
-		$(GOCMD) test ./src/$$P -cover -coverpkg $$P -covermode=count -coverprofile=coverage/$$i.out; \
-	done <coverage/packages
-	echo "mode: count" > coverage/coverage
-	cat coverage/*.out | grep -v "mode: count" >> coverage/coverage
-	$(GOCMD) tool cover -html=coverage/coverage
-
+	rm -fr coverage.txt
+	$(GOCMD) test ./... -race
 
 .PHONY: clean
 clean:

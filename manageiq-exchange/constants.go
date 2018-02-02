@@ -1,4 +1,4 @@
-package constants
+package main
 
 const SERVICE = "manageiq-exchange"
 
