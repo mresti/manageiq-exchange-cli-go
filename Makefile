@@ -29,8 +29,8 @@ build: format test compile
 
 .PHONY: compile
 compile:
-	GOARCH=amd64 GOOS=darwin $(GOBUILD) -o $(DISTPATH).darwin ./$(PROJECT)
-	GOARCH=amd64 GOOS=linux $(GOBUILD) -o $(DISTPATH).linux ./$(PROJECT)
+	GOARCH=amd64 GOOS=darwin $(GOBUILD) -o $(DISTPATH).darwin ./src/$(PROJECT)
+	GOARCH=amd64 GOOS=linux $(GOBUILD) -o $(DISTPATH).linux ./src/$(PROJECT)
 
 .PHONY: deploy
 deploy: coverage build
@@ -50,13 +50,26 @@ run:
 
 .PHONY: test
 test:
-	$(GOCMD) test -v -race ./...
+	$(GOCMD) test -v -race -tags safe ./...
 
 .PHONY: coverage
 coverage:
-	rm -fr coverage.txt
-	$(GOCMD) test ./... -race
+		rm -fr coverage
+		mkdir -p coverage
+		$(GOCMD) list $(PROJECT)/... > coverage/packages
+		@i=a ; \
+		while read -r P; do \
+			i=a$$i ; \
+			$(GOCMD) test ./src/$$P -cover -coverpkg $$P -covermode=count -coverprofile=coverage/$$i.out; \
+		done <coverage/packages
+		echo "mode: count" > coverage/coverage
+		cat coverage/*.out | grep -v "mode: count" >> coverage/coverage
+		$(GOCMD) tool cover -html=coverage/coverage
 
+.PHONY: CI-Coverage
+CI-Coverage: coverage
+		go get -v github.com/mattn/goveralls
+		goveralls -coverprofile=coverage/coverage -service=travis-ci -covermode=count
 .PHONY: clean
 clean:
 	rm -fR bin pkg
