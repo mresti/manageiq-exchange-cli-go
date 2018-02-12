@@ -27,15 +27,15 @@ func TestApi_URL(t *testing.T) {
 		inputPort   int
 		wantURL     string
 	}{
-		{"localhost", 0, "localhost"},
-		{"localhost", 3000, "localhost:3000"},
+		{"localhost", 0, "http://localhost"},
+		{"localhost", 3000, "http://localhost:3000"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.inputServer, func(t *testing.T) {
 			var server Api
 			server.Init(tt.inputServer, tt.inputPort)
 			gotURL := server.URL()
-			if !reflect.DeepEqual(server.Server, tt.wantURL) {
+			if !reflect.DeepEqual(gotURL, tt.wantURL) {
 				t.Fatalf("Api.URL() returned %v, want %v", gotURL, tt.wantURL)
 			}
 		})
