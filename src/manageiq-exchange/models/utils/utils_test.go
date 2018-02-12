@@ -63,3 +63,23 @@ func TestValueIsEmpty(t *testing.T) {
 		t.Errorf("valueIsEmpty returned %+v, want %+v", valueIsEmpty("string", "sample"), want)
 	}
 }
+
+type DataFake struct {
+	Name            string
+	GithubId        int
+}
+
+func TestPrintValues(t *testing.T) {
+	var data = &DataFake{
+		Name:     "Alberto",
+		GithubId: 1,
+	}
+
+	want := "    Name : Alberto\n"
+	got := PrintValues(data, "    ", []string{"GithubId"})
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("PrintValues() returned -%+v-, want -%+v-", got, want)
+	}
+}
+
