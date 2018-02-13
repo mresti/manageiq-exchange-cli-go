@@ -9,7 +9,7 @@ import (
 	"testing"
 	"fmt"
 	meta "manageiq-exchange/models/metadata"
-	//user "manageiq-exchange/models/user"
+	user "manageiq-exchange/models/user"
 	"manageiq-exchange/models/info"
 )
 
@@ -177,5 +177,57 @@ func TestApi_GetInfo(t *testing.T) {
 
 	if !reflect.DeepEqual(gotInfo, wantInfo){
 		t.Errorf("Api.GetInfo() returned %+v want %+v",gotInfo , wantInfo)
+	}
+}
+
+func TestApi_GetUsers_withoutExpandResources(t *testing.T) {
+	setup()
+	defer teardown()
+
+	mux.HandleFunc("/v1/users", func(w http.ResponseWriter, r *http.Request) {
+		if m := http.MethodGet; m != r.Method {
+			t.Errorf("Request method = %v, want %v", r.Method, m)
+		}
+		fmt.Fprint(w, `{"data":[{"login":"aljesusg","name":"Alberto","github_id":1}]}`)
+	})
+
+	gotUsers := client.GetUsers(false)
+	wantUser := user.User{
+		Login:    "aljesusg",
+		Name:     "Alberto",
+		GithubId: 1,
+	}
+	wantUsers := user.UserCollection{}
+	wantUsers.Users = append(wantUsers.Users, wantUser)
+	wantUsers.Total = len(wantUsers.Users)
+
+	if !reflect.DeepEqual(gotUsers, wantUsers){
+		t.Errorf("Api.GetUsers(false) returned %+v want %+v",gotUsers , wantUsers)
+	}
+}
+
+func TestApi_GetUsers_withExpandResources(t *testing.T) {
+	setup()
+	defer teardown()
+
+	mux.HandleFunc("/v1/users", func(w http.ResponseWriter, r *http.Request) {
+		if m := http.MethodGet; m != r.Method {
+			t.Errorf("Request method = %v, want %v", r.Method, m)
+		}
+		fmt.Fprint(w, `{"data":[{"login":"aljesusg","name":"Alberto","github_id":1}]}`)
+	})
+
+	gotUsers := client.GetUsers(true)
+	wantUser := user.User{
+		Login:    "aljesusg",
+		Name:     "Alberto",
+		GithubId: 1,
+	}
+	wantUsers := user.UserCollection{}
+	wantUsers.Users = append(wantUsers.Users, wantUser)
+	wantUsers.Total = len(wantUsers.Users)
+
+	if !reflect.DeepEqual(gotUsers, wantUsers){
+		t.Errorf("Api.GetUsers(true) returned %+v want %+v",gotUsers , wantUsers)
 	}
 }
