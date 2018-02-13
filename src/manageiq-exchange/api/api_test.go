@@ -1,9 +1,51 @@
 package api
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"reflect"
+	"strconv"
 	"testing"
+	"fmt"
+	meta "manageiq-exchange/models/metadata"
+	//user "manageiq-exchange/models/user"
+	"manageiq-exchange/models/info"
 )
+
+var (
+	// mux is the HTTP request multiplexer used with the test server.
+	mux *http.ServeMux
+
+	// client is the client being tested.
+	client *Api
+
+	// urlTest is the url test server
+	urlTest *url.URL
+
+	// server is a test HTTP server used to provide mock API responses.
+	server *httptest.Server
+)
+
+// setup sets up a test HTTP server along with a httpClient that is
+// configured to talk to that test server. Tests should register handlers on
+// mux which provide mock responses for the API method being tested.
+func setup() {
+	// test server
+	mux = http.NewServeMux()
+	server = httptest.NewServer(mux)
+
+	// http client configured to use test server
+	urlTest, _ = url.Parse(server.URL + "/")
+	i, _ := strconv.Atoi(urlTest.Port())
+	client = &Api{}
+	client.Init(urlTest.Hostname(), i)
+}
+
+// teardown closes the test HTTP server.
+func teardown() {
+	server.Close()
+}
 
 func TestApi_Init(t *testing.T) {
 	var server Api
@@ -18,7 +60,24 @@ func TestApi_Init(t *testing.T) {
 }
 
 func TestApi_CheckConnectionServer(t *testing.T) {
-	t.Skip("TODO")
+	want := true
+	setup()
+	statusConn := client.CheckConnectionServer()
+	teardown()
+	if statusConn != want {
+		t.Errorf("Api.CheckConnectionServer() returned %v, want %v", statusConn, want)
+	}
+}
+
+func TestApi_CheckConnectionServer_KO(t *testing.T) {
+	setup()
+	want := false
+	client.Port = 0
+	statusConn := client.CheckConnectionServer()
+	teardown()
+	if statusConn != want {
+		t.Errorf("Api.CheckConnectionServer() returned %v, want %v", statusConn, want)
+	}
 }
 
 func TestApi_URL(t *testing.T) {
@@ -39,5 +98,84 @@ func TestApi_URL(t *testing.T) {
 				t.Fatalf("Api.URL() returned %v, want %v", gotURL, tt.wantURL)
 			}
 		})
+	}
+}
+
+func TestApi_Request(t *testing.T) {
+	setup()
+	defer teardown()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if m := http.MethodGet; m != r.Method {
+			t.Errorf("Request method = %v, want %v", r.Method, m)
+		}
+		fmt.Fprint(w, `{"Data":{"A":"a"}}`)
+	})
+
+	err := client.Request(http.MethodGet, "/", nil)
+
+	if err != nil {
+		t.Errorf("Not expected errors to be returned")
+	}
+
+	wantData := map[string]interface{}{
+		"A": "a",
+	}
+	wantMeta := meta.Metadata{
+		CurrentPage:0,
+		TotalPages:0,
+		TotalCount:0,
+	}
+	if !reflect.DeepEqual(client.Data.Data, wantData){
+		t.Errorf("client.Data.Data returned %+v want %+v", client.Data.Data, wantData)
+	}
+
+	if !reflect.DeepEqual(client.Data.Meta, wantMeta){
+		t.Errorf("client.Data.Meta returned %+v want %+v", client.Data.Meta, wantMeta)
+	}
+}
+
+func TestApi_Request_httpError(t *testing.T) {
+	setup()
+	defer teardown()
+
+	pathURL := "/foo"
+
+	mux.HandleFunc(pathURL, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+	})
+
+	err := client.Request(http.MethodPost, pathURL, nil)
+
+	if err == nil {
+		t.Error("Expected HTTP 400 errors.")
+	}
+}
+
+func TestApi_GetInfo(t *testing.T) {
+	setup()
+	defer teardown()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if m := http.MethodGet; m != r.Method {
+			t.Errorf("Request method = %v, want %v", r.Method, m)
+		}
+		fmt.Fprint(w, `{"data":{"version":"1.0","providers":{"github.com":{"server":"github.com","version":"v3","id_application":"abc"}}}}`)
+	})
+
+	gotInfo := client.GetInfo()
+	wantInfo := info.Info{
+		Version: "1.0",
+		Providers: map[string]info.Provider{
+			"github.com": info.Provider{
+				ApplicationId: "abc",
+				Server:        "github.com",
+				Version:       "v3",
+			},
+		},
+	}
+
+	if !reflect.DeepEqual(gotInfo, wantInfo){
+		t.Errorf("Api.GetInfo() returned %+v want %+v",gotInfo , wantInfo)
 	}
 }

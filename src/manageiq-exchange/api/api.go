@@ -13,6 +13,7 @@ import (
 	"time"
 	"bufio"
 	"strconv"
+	"errors"
 )
 
 var netTransport = &http.Transport{
@@ -101,9 +102,8 @@ func (a *Api) Request(method string, path string, data io.Reader) error {
 		return err
 	}
 	if resp.StatusCode != 200 {
-		return err
+		return errors.New(strconv.Itoa(resp.StatusCode))
 	} else {
-
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return err
