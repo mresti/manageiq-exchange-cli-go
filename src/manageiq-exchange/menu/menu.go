@@ -34,16 +34,17 @@ func Menu() {
 	var miq_exchange api.Api
 	miq_exchange.Init(server, port)
 
-	if version {
+	statusConnection := miq_exchange.CheckConnectionServer()
+
+	if version && statusConnection{
 		info := miq_exchange.GetInfo()
 		fmt.Printf(info.Print())
 	}
 
-	if users {
+	if users && statusConnection{
 		users := miq_exchange.GetUsers(expand)
 		fmt.Printf(users.Print(miq_exchange.Data.Meta.TotalCount))
 	}
-
 }
 
 func Banner() {

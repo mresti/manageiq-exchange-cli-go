@@ -11,6 +11,9 @@ import (
 	"net"
 	"net/http"
 	"time"
+	"bufio"
+	"strconv"
+	"errors"
 )
 
 var netTransport = &http.Transport{
@@ -41,6 +44,22 @@ func (a *Api) Init(server string, port int) {
 	a.Server = server
 	a.Port = port
 	a.Client = netClient
+}
+
+func (a *Api) CheckConnectionServer() bool {
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%s", a.Server, strconv.Itoa(a.Port)))
+	if err != nil {
+		fmt.Printf("Fatal error: %s\n", err.Error())
+		return false
+	}
+	fmt.Fprintf(conn, "GET / HTTP/1.0\r\n\r\n")
+	status, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		fmt.Printf("Fatal error: %s\n", err.Error())
+		return false
+	}
+	fmt.Printf("Status connection server: %s", status)
+	return true
 }
 
 func (a *Api) URL() string {
@@ -83,9 +102,8 @@ func (a *Api) Request(method string, path string, data io.Reader) error {
 		return err
 	}
 	if resp.StatusCode != 200 {
-		return err
+		return errors.New(strconv.Itoa(resp.StatusCode))
 	} else {
-
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			return err
