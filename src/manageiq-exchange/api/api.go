@@ -71,7 +71,11 @@ func (a *API) URL() string {
 }
 
 func (a *API) GetInfo() info.Info {
-	a.Request("GET", "", nil)
+	err := a.Request("GET", "", nil)
+	if err != nil {
+		fmt.Printf("%+v", err)
+		return info.Info{}
+	}
 	var info info.Info
 	info.Init(a.Data.Data.(map[string]interface{}))
 	return info
@@ -85,6 +89,7 @@ func (a *API) GetUsers(expand bool) user.UserCollection {
 	err := a.Request("GET", path, nil)
 	if err != nil {
 		fmt.Printf("%+v", err)
+		return user.UserCollection{}
 	}
 	var users user.UserCollection
 	users.Init(a.Data.Data.([]interface{}))
@@ -101,7 +106,7 @@ func (a *API) Request(method string, path string, data io.Reader) error {
 		return err
 	}
 	if resp.StatusCode != 200 {
-		return errors.New(strconv.Itoa(resp.StatusCode))
+		return errors.New(fmt.Sprintf("Error status code: %v", resp.StatusCode))
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)

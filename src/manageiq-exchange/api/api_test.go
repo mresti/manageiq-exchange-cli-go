@@ -135,6 +135,29 @@ func TestApi_Request(t *testing.T) {
 	}
 }
 
+func TestApi_Request_badURL(t *testing.T) {
+	setup()
+	defer teardown()
+
+	err := client.Request(http.MethodGet, "%zzzzz", nil)
+
+	if err == nil {
+		t.Errorf("Expected error to be returned")
+	}
+}
+
+func TestApi_Request_invalidDo(t *testing.T) {
+	setup()
+	defer teardown()
+
+	client.Port = 0
+
+	err := client.Request(http.MethodGet, ":", nil)
+	if err == nil {
+		t.Errorf("Expected error to be returned")
+	}
+}
+
 func TestApi_Request_httpError(t *testing.T) {
 	setup()
 	defer teardown()
@@ -180,6 +203,24 @@ func TestApi_GetInfo(t *testing.T) {
 	}
 }
 
+func TestApi_GetInfo_httpError(t *testing.T) {
+	setup()
+	defer teardown()
+
+	pathURL := "/"
+
+	mux.HandleFunc(pathURL, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+	})
+
+	gotInfo := client.GetInfo()
+	wantInfo := info.Info{}
+
+	if !reflect.DeepEqual(gotInfo, wantInfo) {
+		t.Errorf("Api.GetInfo() returned %+v want %+v", gotInfo, wantInfo)
+	}
+}
+
 func TestApi_GetUsers_withoutExpandResources(t *testing.T) {
 	setup()
 	defer teardown()
@@ -191,7 +232,9 @@ func TestApi_GetUsers_withoutExpandResources(t *testing.T) {
 		fmt.Fprint(w, `{"data":[{"login":"aljesusg","name":"Alberto","github_id":1}]}`)
 	})
 
-	gotUsers := client.GetUsers(false)
+	expand := false
+
+	gotUsers := client.GetUsers(expand)
 	wantUser := user.User{
 		Login:    "aljesusg",
 		Name:     "Alberto",
@@ -202,7 +245,7 @@ func TestApi_GetUsers_withoutExpandResources(t *testing.T) {
 	wantUsers.Total = len(wantUsers.Users)
 
 	if !reflect.DeepEqual(gotUsers, wantUsers) {
-		t.Errorf("Api.GetUsers(false) returned %+v want %+v", gotUsers, wantUsers)
+		t.Errorf("Api.GetUsers(%t) returned %+v want %+v", expand, gotUsers, wantUsers)
 	}
 }
 
@@ -217,7 +260,9 @@ func TestApi_GetUsers_withExpandResources(t *testing.T) {
 		fmt.Fprint(w, `{"data":[{"login":"aljesusg","name":"Alberto","github_id":1}]}`)
 	})
 
-	gotUsers := client.GetUsers(true)
+	expand := true
+
+	gotUsers := client.GetUsers(expand)
 	wantUser := user.User{
 		Login:    "aljesusg",
 		Name:     "Alberto",
@@ -228,6 +273,25 @@ func TestApi_GetUsers_withExpandResources(t *testing.T) {
 	wantUsers.Total = len(wantUsers.Users)
 
 	if !reflect.DeepEqual(gotUsers, wantUsers) {
-		t.Errorf("Api.GetUsers(true) returned %+v want %+v", gotUsers, wantUsers)
+		t.Errorf("Api.GetUsers(%t) returned %+v want %+v", expand, gotUsers, wantUsers)
+	}
+}
+
+func TestApi_GetUsers_httpError(t *testing.T) {
+	setup()
+	defer teardown()
+
+	pathURL := "/v1/users"
+	expand := true
+
+	mux.HandleFunc(pathURL, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+	})
+
+	gotUsers := client.GetUsers(expand)
+	wantUsers := user.UserCollection{}
+
+	if !reflect.DeepEqual(gotUsers, wantUsers) {
+		t.Errorf("Api.GetUsers(%t) returned %+v want %+v", expand, gotUsers, wantUsers)
 	}
 }
